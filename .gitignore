@@ -1,0 +1,4 @@
+shader/spirv/
+*.o
+main
+.DS_Store

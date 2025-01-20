@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+SHADER_DIR="shader"
+SPIRV_DIR="$SHADER_DIR/spirv"
+
+if [ ! -d "$SPIRV_DIR" ]; then
+    mkdir -p "$SPIRV_DIR"
+fi
+
+SHADER_SUFFIXES=(".vert" ".tesc" ".tese" ".geom" ".frag" ".comp" ".mesh" ".task" ".rgen" ".rint" ".rahit" ".rchit" ".rmiss" ".rcall")
+
+for suffix in "${SHADER_SUFFIXES[@]}"; do
+    for file in "$SHADER_DIR"/*"$suffix.glsl"; do
+        if [ -f "$file" ]; then
+            base_name=$(basename "$file" .glsl)
+            glslangValidator -V "$file" -o "$SPIRV_DIR/$base_name"
+        fi
+    done
+done
