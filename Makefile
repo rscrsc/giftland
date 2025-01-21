@@ -1,4 +1,4 @@
-CFLAGS := -Wall -Wextra -g -std=c++20 -I/opt/VulkanSDK/1.4.304.0/macOS/include $(shell pkg-config --cflags sdl2)
+CFLAGS := -Wall -Wextra -g -O3 -std=c++20 -I/opt/VulkanSDK/1.4.304.0/macOS/include $(shell pkg-config --cflags sdl2)
 LDFLAGS := -L/opt/VulkanSDK/1.4.304.0/macOS/lib -lvulkan $(shell pkg-config --libs --static sdl2)
 SHADER_DIR := shader
 SHADER_SRCS := $(wildcard $(SHADER_DIR)/*.glsl)
