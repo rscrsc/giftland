@@ -44,14 +44,8 @@ Sdl::Sdl (Config& cfg)
     if (SDL_Vulkan_CreateSurface(window, vulkanCtx->getInstance(), &s) != SDL_TRUE) {
         throw std::runtime_error("SDL_Vulkan_CreateSurface failed");
     }
-    vulkanCtx->setSurface(s);
-    
-    vulkanCtx->createSwapchain();
-    vulkanCtx->createSwapchainImageView();
-    vulkanCtx->createRenderPass();
-    vulkanCtx->createPipeline();
-    vulkanCtx->createFramebuffer();
-    vulkanCtx->createCommandBuffer();
+
+    vulkanCtx->initGraphics(s);
 }
 
 Sdl::~Sdl ()

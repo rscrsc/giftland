@@ -105,8 +105,9 @@ void Vulkan::createShaderModule ()
     if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkCreateShaderModule: {}", (int)r));
 }
 
-void Vulkan::createPipeline ()
+void Vulkan::buildGraphicsPipeline ()
 {
+    createRenderPass();
     createShaderModule();
     prepShaderStageCreateInfo();
     prepVertexInputStateCreateInfo();
@@ -133,7 +134,7 @@ void Vulkan::createFramebuffer ()
     }
 }
 
-void Vulkan::createCommandBuffer ()
+void Vulkan::buildCommandBuffer ()
 {
 // Step1 create command pools
     prepCommandPoolCreateInfo();
@@ -185,11 +186,13 @@ void Vulkan::createCommandBuffer ()
     }
 }
 
-void Vulkan::createSwapchain ()
+void Vulkan::buildSwapchain ()
 {
     prepSwapchainCreateInfo();
     VkResult r = vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain);
     if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkCreateSwapchainKHR: ", (int)r));
+    createSwapchainImageView();
+    createFramebuffer();
 }
 
 void Vulkan::render ()

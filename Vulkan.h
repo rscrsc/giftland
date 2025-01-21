@@ -702,27 +702,31 @@ private:
     void selectFormat ();
     void createShaderModule ();
 
+    void createSwapchainImageView ();
+    void createRenderPass ();
+    void createFramebuffer ();
+    void buildCommandBuffer ();
+    void buildGraphicsPipeline ();
+    void buildSwapchain ();
+
 public:
     Vulkan (std::vector<const char*> additionalInstanceExtensions, Config& cfg);
     ~Vulkan ();
     Vulkan (Vulkan& rhs) = delete;
     Vulkan (Vulkan&& rhs) = delete;
 
-    void createSwapchain ();
-    void createSwapchainImageView ();
-    void createRenderPass ();
-    void createPipeline ();
-    void createFramebuffer ();
-    void createCommandBuffer ();
     void render ();
     
     inline VkInstance& getInstance ()
     {
         return instance;
     }
-    inline void setSurface (VkSurfaceKHR s)
+    inline void initGraphics (VkSurfaceKHR& s)
     {
         surface = s;
+        buildSwapchain();
+        buildGraphicsPipeline();
+        buildCommandBuffer();
     }
 };
 #endif
