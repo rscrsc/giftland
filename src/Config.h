@@ -9,6 +9,7 @@
 #include <exception>
 #include <format>
 #include <vector>
+#include <unistd.h>
 #include "utils.h"
 
 class Config
@@ -29,7 +30,12 @@ public:
     {
         std::ifstream configFile(configFilepath);
         if (!configFile.is_open()) {
-            throw std::runtime_error(std::format("could not open config file at ", configFilepath));
+            char buffer[4096];
+            if (getcwd(buffer, sizeof(buffer)) != nullptr) {
+                throw std::runtime_error(std::format("could not open config file at {}/{}", std::string(buffer), configFilepath));
+            } else {
+                throw std::runtime_error(std::format("could not open config file at {}", configFilepath));
+            }
         }
         logInfo(std::format("Found {} as config file", configFilepath));
 
