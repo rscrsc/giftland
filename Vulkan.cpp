@@ -8,6 +8,7 @@
 #include <format>
 #include <algorithm>
 #include <limits>
+#include <chrono>
 
 void Vulkan::buildSwapchain ()
 {
@@ -111,8 +112,9 @@ void Vulkan::buildCommandBuffer ()
         }
     }
 // Step 4: Create semaphores and fences
-// - imageAvailableSemaphores : an image has been acquired and is ready for rendering
-// - renderFinishedSemaphores : rendering has finished and presentation can happen
+// - imageAvailableSemaphores : in-GPU sync, an image has been acquired and is ready for rendering
+// - renderFinishedSemaphores : in-GPU sync, rendering has finished and presentation can happen
+// - execFences: CPU-GPU sync, one render execution ends and the host can begin a new frame
     {
     // use queue family 0 for graphics pipeline
         auto& cbs = commandBuffers[0];
@@ -133,13 +135,13 @@ void Vulkan::buildCommandBuffer ()
         }
         imageAvailableSemaphores.resize(cbs.size());
         renderFinishedSemaphores.resize(cbs.size());
-        inFlightFences.resize(cbs.size());
+        execFences.resize(cbs.size());
         for (uint32_t i = 0; i < cbs.size(); ++i) {
             VkResult r = vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &(imageAvailableSemaphores[i]));
             if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkCreateSemaphore: {}", (int)r));
             r = vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &(renderFinishedSemaphores[i]));
             if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkCreateSemaphore: {}", (int)r));
-            r = vkCreateFence(device, &fenceCreateInfo, nullptr, &(inFlightFences[i]));
+            r = vkCreateFence(device, &fenceCreateInfo, nullptr, &(execFences[i]));
             if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkCreateFence: {}", (int)r));
         }
     }
@@ -148,49 +150,62 @@ void Vulkan::buildCommandBuffer ()
 void Vulkan::render ()
 {
     {
-    // use queue family 0 for graphics pipeline
+        static std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds> lastFrameStartTime;
+        auto thisFrameStartTime = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
+        auto frameTime = thisFrameStartTime - lastFrameStartTime;
+
+    // use queue family 0 queue 0 for graphics pipeline
         auto& cbs = commandBuffers[0];
-        static uint32_t currentFrame = 0;
-        static uint32_t imageIndex = -1;
-        vkWaitForFences(device, 1, &(inFlightFences[currentFrame]), VK_TRUE, std::numeric_limits<uint64_t>::max());
-        vkResetFences(device, 1, &(inFlightFences[currentFrame]));
-        vkAcquireNextImageKHR(device, swapchain, 
+        auto& q = deviceQueues[0][0];
+        // we have a pool of semaphores or fences for each sync purpose, 
+        // out of each pool, use one at a time (pool size no less than amount of images)
+        static uint32_t syncIdx = 0;
+        // correct image (canvas) to use this frame, told by swapchain later
+        uint32_t imageIdx = -1;
+        vkWaitForFences(device, 1, &(execFences[syncIdx]), VK_TRUE, std::numeric_limits<uint64_t>::max());
+        vkResetFences(device, 1, &(execFences[syncIdx]));
+        // acquire (occupy) an available image to draw on
+        vkAcquireNextImageKHR(device, swapchain,
             std::numeric_limits<uint64_t>::max(), 
-            imageAvailableSemaphores[currentFrame],
-            VK_NULL_HANDLE, &imageIndex);
+            imageAvailableSemaphores[syncIdx],
+            VK_NULL_HANDLE, &imageIdx);
         // submit command buffer to queue (once per frame)
-        VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         VkSubmitInfo submitInfo;
-        VkPresentInfoKHR presentInfo;
+        // "dst" means mask out: which stages need to wait
+        VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         {
             auto& si = submitInfo;
             si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             si.pNext = nullptr;
             si.waitSemaphoreCount = 1;
-            si.pWaitSemaphores = &(imageAvailableSemaphores[currentFrame]);
+            si.pWaitSemaphores = &(imageAvailableSemaphores[syncIdx]);
             si.pWaitDstStageMask = &waitDstStageMask;
             si.commandBufferCount = 1;
-            si.pCommandBuffers = &cbs[imageIndex];
+            si.pCommandBuffers = &cbs[imageIdx];
             si.signalSemaphoreCount = 1;
-            si.pSignalSemaphores = &renderFinishedSemaphores[imageIndex];
+            si.pSignalSemaphores = &renderFinishedSemaphores[imageIdx];
         }
-        vkQueueSubmit(deviceQueues[0][0], 1, &submitInfo, 
-            inFlightFences[currentFrame]);
+        // execFence is signaled when submitted command buffers have completed execution
+        // command buffer state: Executable --submitted-> Pending(occupied) 
+        //                                <-exec complete--      <if set one-time> --complete-> Invalid
+        vkQueueSubmit(q, 1, &submitInfo, execFences[syncIdx]);
+        VkPresentInfoKHR presentInfo;
         // ask queue to present to swapchain image
         {
             auto& pi = presentInfo;
             pi.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
             pi.pNext = nullptr;
             pi.waitSemaphoreCount = 1;
-            pi.pWaitSemaphores = &(renderFinishedSemaphores[currentFrame]);
+            pi.pWaitSemaphores = &(renderFinishedSemaphores[syncIdx]);
             pi.swapchainCount = 1;
             pi.pSwapchains = &swapchain;
-            pi.pImageIndices = &imageIndex;
+            pi.pImageIndices = &imageIdx;
             pi.pResults = nullptr;
         }
-        vkQueuePresentKHR(deviceQueues[0][0], &presentInfo);
-        //next frame
-        currentFrame = (currentFrame + 1) % cbs.size();  
+        // release the image in use and present to platform display engine
+        vkQueuePresentKHR(q, &presentInfo);
+        syncIdx = (syncIdx + 1) % cbs.size();
+        lastFrameStartTime = thisFrameStartTime;
     }  
 }
 

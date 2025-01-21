@@ -68,7 +68,7 @@ private:
 // Syncs
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
-    std::vector<VkFence> inFlightFences;
+    std::vector<VkFence> execFences;
 
 //    VkBufferCreateInfo vertexBufferCreateInfo;
 
@@ -208,7 +208,8 @@ private:
     // what you may use the swapchain as
         ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     // which queue family first use the swapchain get the ownership
-        ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        //ci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        ci.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         ci.queueFamilyIndexCount = queueFamilyInUse.size();
         ci.pQueueFamilyIndices = queueFamilyInUse.data();
     // transforms like rotate, flip, etc
@@ -415,8 +416,8 @@ private:
         {
             viewports.resize(1);
             auto& v = viewports[0];
-            v.x = 0.0f;
-            v.y = 0.0f;
+            v.x = 0.8f;
+            v.y = 0.8f;
             v.width = surfaceCap.currentExtent.width;
             v.height = surfaceCap.currentExtent.height;
             v.minDepth = 0.0f;
