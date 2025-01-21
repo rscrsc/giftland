@@ -182,7 +182,7 @@ void Vulkan::render ()
         }
         vkQueuePresentKHR(deviceQueues[0][0], &presentInfo);
         //next frame
-        currentFrame = (currentFrame + 1) % commandBuffers[0].size();  
+        currentFrame = (currentFrame + 1) % cbs.size();  
     }  
 }
 
