@@ -152,7 +152,7 @@ void Vulkan::render ()
     {
         static std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds> lastFrameStartTime;
         auto thisFrameStartTime = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
-        auto frameTime = thisFrameStartTime - lastFrameStartTime;
+        [[maybe_unused]] auto frameTime = thisFrameStartTime - lastFrameStartTime;
 
     // use queue family 0 queue 0 for graphics pipeline
         auto& cbs = commandBuffers[0];

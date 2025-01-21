@@ -347,7 +347,7 @@ private:
     }
     inline void readShaderCode (std::vector<char>& buffer, std::string rPath)
     {
-        std::string absPath = cfg.spirvPath + std::string("/") + rPath;
+        std::string absPath = cfg.rootDir + std::string("/") + cfg.spirvPath + std::string("/") + rPath;
         std::ifstream file(absPath, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
             throw std::runtime_error("failed to open spirv file: " + absPath);

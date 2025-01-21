@@ -1,5 +1,5 @@
 shader/spirv/
-*.o
-main
 .DS_Store
 .vscode/
+build/
+config.ini

@@ -2,26 +2,31 @@ CFLAGS := -Wall -Wextra -g -O3 -std=c++20 -I/opt/VulkanSDK/1.4.304.0/macOS/inclu
 LDFLAGS := -L/opt/VulkanSDK/1.4.304.0/macOS/lib -lvulkan $(shell pkg-config --libs --static sdl2)
 SHADER_DIR := shader
 SHADER_SRCS := $(wildcard $(SHADER_DIR)/*.glsl)
+BUILD_DIR := build
+SRC_DIR := src
+H_SRCS := $(wildcard $(SRC_DIR)/*.h)
+obj-y := main.o Sdl.o Vulkan.o
+OBJS := $(addprefix $(BUILD_DIR)/, $(obj-y))
 
-all: main shaders
+all: build/main shaders
 	sh -c ". /opt/VulkanSDK/1.4.304.0/setup-env.sh 2>&1 1>/dev/null; \
-	./main"
+	build/main"
 
-main: main.o Vulkan.o Sdl.o
+build/main: $(OBJS)
 	sh -c ". /opt/VulkanSDK/1.4.304.0/setup-env.sh 2>&1 1>/dev/null; \
-	c++ $(CFLAGS) $(LDFLAGS) -o main main.o Vulkan.o Sdl.o"
+	c++ $(CFLAGS) $(LDFLAGS) -o $@ $^"
 
-main.o: main.cpp Vulkan.h Sdl.h Config.h utils.h
+$(BUILD_DIR)/main.o: $(SRC_DIR)/main.cpp $(H_SRCS)
 	sh -c ". /opt/VulkanSDK/1.4.304.0/setup-env.sh 2>&1 1>/dev/null; \
-	c++ $(CFLAGS) -o main.o -c main.cpp"
+	c++ $(CFLAGS) -o $@ -c $(SRC_DIR)/main.cpp"
 
-Vulkan.o: Vulkan.cpp Vulkan.h Config.h utils.h
+$(BUILD_DIR)/Vulkan.o: $(SRC_DIR)/Vulkan.cpp $(H_SRCS)
 	sh -c ". /opt/VulkanSDK/1.4.304.0/setup-env.sh 2>&1 1>/dev/null; \
-	c++ $(CFLAGS) -o Vulkan.o -c Vulkan.cpp"
+	c++ $(CFLAGS) -o $@ -c $(SRC_DIR)/Vulkan.cpp"
 
-Sdl.o: Sdl.cpp Sdl.h Vulkan.h Config.h utils.h
+$(BUILD_DIR)/Sdl.o: $(SRC_DIR)/Sdl.cpp $(H_SRCS)
 	sh -c ". /opt/VulkanSDK/1.4.304.0/setup-env.sh 2>&1 1>/dev/null; \
-	c++ $(CFLAGS) -o Sdl.o -c Sdl.cpp"
+	c++ $(CFLAGS) -o $@ -c $(SRC_DIR)/Sdl.cpp"
 
-shaders: $(SHADER_SRCS)
+shaders:
 	./script/shaderc
