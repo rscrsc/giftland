@@ -17,45 +17,33 @@ class Vulkan
 {
 private:
     [[maybe_unused]] Config& cfg;
+// Handles
     VkInstance instance;
-    VkInstanceCreateInfo instanceCreateInfo;
-    VkApplicationInfo applicationInfo;
-    std::vector<const char*> instanceEnabledExtensionNames = {"VK_KHR_portability_enumeration"};
-
-    VkPhysicalDevice selectedPhysicalDevice;
-    VkPhysicalDeviceProperties physicalDeviceProperties;
-    std::vector<VkQueueFamilyProperties> queueFamilyProperties;
-    std::vector<std::vector<float>> queueFamilyPriorities;
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    VkDeviceCreateInfo deviceCreateInfo;
-    std::vector<const char*> deviceEnabledExtensionNames = {"VK_KHR_portability_subset", VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-    VkPhysicalDeviceFeatures physicalDeviceFeatures;
     VkDevice device;
-    std::vector<std::vector<VkQueue>> deviceQueues;
-
     VkSurfaceKHR surface;
     VkSwapchainKHR swapchain;
-    VkSwapchainCreateInfoKHR swapchainCreateInfo;
+    std::vector<std::vector<VkQueue>> deviceQueues;
+    std::vector<VkImage> swapchainImages;
+    std::vector<VkImageView> swapchainImageViews;
+    VkRenderPass renderPass;
+    std::vector<VkShaderModule> shaderModules;
+    VkPipeline pipeline;
+    std::vector<VkFramebuffer> framebuffers;
+    std::vector<VkCommandPool> commandPools;
+// dim: queueFamilyInUse.size() * framebuffers.size()
+    std::vector<std::vector<VkCommandBuffer>> commandBuffers;
+// Pre-defineds
+    std::vector<const char*> instanceEnabledExtensionNames = {"VK_KHR_portability_enumeration"};
+    std::vector<const char*> deviceEnabledExtensionNames = {"VK_KHR_portability_subset", VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    std::vector<uint32_t> queueFamilyInUse = {0};
+// Useful infos
+    VkPhysicalDevice selectedPhysicalDevice;
     VkSurfaceFormatKHR selectedSurfaceFormat;
     VkSurfaceCapabilitiesKHR surfaceCap;
-    std::vector<uint32_t> queueFamilyInUse = {0};
-
-    std::vector<VkImage> swapchainImages;
-    std::vector<VkImageViewCreateInfo> swapchainImageViewCreateInfos;
-    std::vector<VkImageView> swapchainImageViews;
-
+    VkPhysicalDeviceProperties physicalDeviceProperties;
+    std::vector<VkQueueFamilyProperties> queueFamilyProperties;
     std::vector<VkAttachmentDescription> attachments;
-    std::vector<VkAttachmentReference> colorAttachmentReferences;
-    std::vector<VkClearValue> attachmentClearValues;
-    std::vector<VkSubpassDescription> subpasses;
-    std::vector<VkSubpassDependency> dependencies;
-    VkRenderPassCreateInfo renderPassCreateInfo;
-    VkRenderPass renderPass;
-
-    std::vector<std::vector<char>> shaderCodes;
-    std::vector<VkShaderModuleCreateInfo> shaderModuleCreateInfos;
-    std::vector<VkShaderModule> shaderModules;
-    std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
+// For pipeline creation
     struct {
         VkPipelineVertexInputStateCreateInfo vertexInput;
         VkPipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -71,26 +59,13 @@ private:
     std::vector<VkRect2D> scissors;
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachmentStates;
     std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_LINE_WIDTH
+        //VK_DYNAMIC_STATE_VIEWPORT
     };
     std::vector<VkDescriptorSetLayout> descriptorSetLayout;
     std::vector<VkPushConstantRange> pushConstantRanges;
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     VkPipelineLayout pipelineLayout;
-    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo;
-    VkPipeline pipeline;
-
-    std::vector<VkFramebufferCreateInfo> framebufferCreateInfos;
-    std::vector<VkFramebuffer> framebuffers;
-
-    std::vector<VkCommandPoolCreateInfo> commandPoolCreateInfos;
-    std::vector<VkCommandPool> commandPools;
-    std::vector<VkCommandBufferAllocateInfo> commandBufferAllocateInfos;
-// dim: queueFamilyInUse.size() * framebuffers.size()
-    std::vector<std::vector<VkCommandBuffer>> commandBuffers;
-    VkCommandBufferBeginInfo commandBufferBeginInfo;
-    std::vector<VkRenderPassBeginInfo> renderPassBeginInfos;
+// Syncs
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
@@ -99,6 +74,8 @@ private:
 
     inline void createInstance()
     {
+        VkInstanceCreateInfo instanceCreateInfo;
+        VkApplicationInfo applicationInfo;
         {
             auto& ai = applicationInfo;
             ai.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -139,6 +116,7 @@ private:
     }
     inline void createDevice ()
     {
+    VkDeviceCreateInfo deviceCreateInfo;
     // Step 1: Get queue family info
         {
             uint32_t queueFamilyCnt = 0;
@@ -147,6 +125,8 @@ private:
             vkGetPhysicalDeviceQueueFamilyProperties(selectedPhysicalDevice, &queueFamilyCnt, queueFamilyProperties.data());
         }
     // Step 2: Prepare queue create info
+        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+        std::vector<std::vector<float>> queueFamilyPriorities;
         queueCreateInfos.resize(queueFamilyProperties.size());
         queueFamilyPriorities.resize(queueFamilyProperties.size());
         for (uint32_t i = 0; i < queueCreateInfos.size(); ++i) {
@@ -161,6 +141,7 @@ private:
         }
     // Step 3: Create device (implicitly created queues)
         auto& ci = deviceCreateInfo;
+        VkPhysicalDeviceFeatures physicalDeviceFeatures;
         vkGetPhysicalDeviceFeatures(selectedPhysicalDevice, &physicalDeviceFeatures);
         ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         ci.pNext = nullptr;
@@ -209,6 +190,7 @@ private:
     }
     inline void createSwapchain ()
     {
+        VkSwapchainCreateInfoKHR swapchainCreateInfo;
         selectFormat();
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(selectedPhysicalDevice, surface, &surfaceCap);
 
@@ -257,6 +239,7 @@ private:
 */
     inline void createSwapchainImageView ()
     {
+        std::vector<VkImageViewCreateInfo> swapchainImageViewCreateInfos;
         {
             uint32_t swapchainImageCnt = 0;
             vkGetSwapchainImagesKHR(device, swapchain, &swapchainImageCnt, nullptr);
@@ -292,6 +275,10 @@ private:
     }
     inline void createRenderPass ()
     {
+        std::vector<VkAttachmentReference> colorAttachmentReferences;
+        std::vector<VkSubpassDescription> subpasses;
+        std::vector<VkSubpassDependency> dependencies;
+        VkRenderPassCreateInfo renderPassCreateInfo;
     // Step 1: Prepare attachments info
         {
             attachments.resize(1);
@@ -374,6 +361,8 @@ private:
     }
     inline void createShaderModule ()
     {
+        std::vector<std::vector<char>> shaderCodes;
+        std::vector<VkShaderModuleCreateInfo> shaderModuleCreateInfos;
         shaderCodes.resize(2);
         readShaderCode(shaderCodes[0], "triangle.vert");
         readShaderCode(shaderCodes[1], "triangle.frag");
@@ -541,7 +530,9 @@ private:
 
     inline void createGraphicsPipeline ()
     {
+        VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo;
     // Step 1: Prepare shader stages info
+        std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos;
         shaderStageCreateInfos.resize(shaderModules.size());
         for (uint32_t i = 0; i < shaderStageCreateInfos.size(); ++i) {
             auto& ci = shaderStageCreateInfos[i];
@@ -607,6 +598,7 @@ private:
     }
     inline void createFramebuffer ()
     {
+        std::vector<VkFramebufferCreateInfo> framebufferCreateInfos;
         framebufferCreateInfos.resize(swapchainImageViews.size());
         framebuffers.resize(swapchainImageViews.size());
         for (uint32_t i = 0; i < framebufferCreateInfos.size(); ++i) {

@@ -26,6 +26,7 @@ void Vulkan::buildGraphicsPipeline ()
 void Vulkan::buildCommandBuffer ()
 {
 // Step 1: Create command pools (1 command pool per queue family)
+    std::vector<VkCommandPoolCreateInfo> commandPoolCreateInfos;
     commandPoolCreateInfos.resize(queueFamilyInUse.size());
     commandPools.resize(queueFamilyInUse.size());
     for (uint32_t i = 0; i < commandPoolCreateInfos.size(); ++i) {
@@ -38,6 +39,7 @@ void Vulkan::buildCommandBuffer ()
         if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkCreateCommandPool: {}", (int)r));
     }
 // Step 2: Allocate command buffer (1 command buffer per queue family per framebuffer)
+    std::vector<VkCommandBufferAllocateInfo> commandBufferAllocateInfos;
     commandBufferAllocateInfos.resize(commandPools.size());
     commandBuffers.resize(commandPools.size());
     for (uint32_t i = 0; i < commandBufferAllocateInfos.size(); ++i) {
@@ -53,6 +55,7 @@ void Vulkan::buildCommandBuffer ()
         if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkAllocateCommandBuffers: {}", (int)r));
     }
 // Step 3: Record commands
+    VkCommandBufferBeginInfo commandBufferBeginInfo;
     {
         auto& ci = commandBufferBeginInfo;
         ci.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -68,6 +71,8 @@ void Vulkan::buildCommandBuffer ()
         // Command buffer: Initial -> Recording
             vkBeginCommandBuffer(cbs[i], &commandBufferBeginInfo);
         // begin render pass
+            std::vector<VkRenderPassBeginInfo> renderPassBeginInfos;
+            std::vector<VkClearValue> attachmentClearValues;
             {
                 attachmentClearValues.resize(attachments.size());
                 for (auto& el : attachmentClearValues) {
@@ -89,6 +94,7 @@ void Vulkan::buildCommandBuffer ()
                         },
                         .extent = surfaceCap.currentExtent
                     };
+                    // clear values corresponding to attachment indices with CLEAR loadOp are used
                     ci.clearValueCount = attachmentClearValues.size();
                     ci.pClearValues = attachmentClearValues.data();
                 }
