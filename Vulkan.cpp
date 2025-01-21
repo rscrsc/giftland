@@ -195,7 +195,7 @@ void Vulkan::createSwapchain ()
 void Vulkan::render ()
 {
     static uint32_t currentFrame = 0;
-	static uint32_t imageIndex = -1;
+    static uint32_t imageIndex = -1;
     vkWaitForFences(device, 1, &(inFlightFences[currentFrame]), VK_TRUE, std::numeric_limits<uint64_t>::max());
     vkResetFences(device, 1, &(inFlightFences[currentFrame]));
     vkAcquireNextImageKHR(device, swapchain, 
@@ -208,10 +208,7 @@ void Vulkan::render ()
         inFlightFences[currentFrame]);
     prepPresentInfo(currentFrame, imageIndex);
     vkQueuePresentKHR(deviceQueues[0][0], &presentInfo);
-    //std::cout << "image index " << imageIndex << "\n";
-	//std::cout << "current frame " << currentFrame << "\n";
-
-	currentFrame = (currentFrame + 1) % commandBuffers[0].size();    
+    currentFrame = (currentFrame + 1) % commandBuffers[0].size();    
 }
 
 Vulkan::~Vulkan ()
