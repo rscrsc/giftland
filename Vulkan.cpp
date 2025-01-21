@@ -153,13 +153,15 @@ void Vulkan::render ()
             imageAvailableSemaphores[currentFrame],
             VK_NULL_HANDLE, &imageIndex);
         // submit command buffer to queue (once per frame)
+        VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        VkSubmitInfo submitInfo;
+        VkPresentInfoKHR presentInfo;
         {
             auto& si = submitInfo;
             si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             si.pNext = nullptr;
             si.waitSemaphoreCount = 1;
             si.pWaitSemaphores = &(imageAvailableSemaphores[currentFrame]);
-            waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             si.pWaitDstStageMask = &waitDstStageMask;
             si.commandBufferCount = 1;
             si.pCommandBuffers = &cbs[imageIndex];

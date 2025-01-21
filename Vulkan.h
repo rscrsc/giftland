@@ -95,10 +95,6 @@ private:
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
 
-    VkPipelineStageFlags waitDstStageMask;
-    VkSubmitInfo submitInfo;
-    VkPresentInfoKHR presentInfo;
-
 //    VkBufferCreateInfo vertexBufferCreateInfo;
 
     inline void createInstance()
