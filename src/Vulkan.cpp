@@ -24,6 +24,12 @@ void Vulkan::buildGraphicsPipeline ()
     createGraphicsPipeline();
 }
 
+void Vulkan::buildDataBuffers ()
+{
+    getPhysicalDeviceMemoryProperties();
+    createVertexBuffer();
+}
+
 void Vulkan::buildCommandBuffer ()
 {
 // Step 1: Create command pools (1 command pool per queue family)
@@ -103,6 +109,9 @@ void Vulkan::buildCommandBuffer ()
             vkCmdBeginRenderPass(cbs[i], &(renderPassBeginInfos[i]), VK_SUBPASS_CONTENTS_INLINE);
         // bind pipeline to command buffer of queue 0
             vkCmdBindPipeline(cbs[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+            VkBuffer vertexBuffers[] = {vertexBuffer};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(cbs[i], 0, 1, vertexBuffers, offsets);
         // draw call
             vkCmdDraw(cbs[i], 3, 1, 0, 0);
         // end render pass
@@ -212,6 +221,8 @@ void Vulkan::render ()
 Vulkan::~Vulkan ()
 {
     vkDestroySwapchainKHR(device, swapchain, nullptr);
+    vkDestroyBuffer(device, vertexBuffer, nullptr);
+    vkFreeMemory(device, vertexBufferMemory, nullptr);
     vkDestroySurfaceKHR(instance, surface, nullptr);
     // After destroying all objs created with device, wait idle and destroy it
     vkDeviceWaitIdle(device);

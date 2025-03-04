@@ -1,13 +1,14 @@
-#include "utils.h"
-#include "Vulkan.h"
-#include "Sdl.h"
-#include "Config.h"
-
 #include <iostream>
 #include <string>
 #include <array>
 #include <vector>
 #include <format>
+
+#include "utils.h"
+#include "Vulkan.h"
+#include "Sdl.h"
+#include "Config.h"
+#include "Vertex.h"
 
 int main () {
 try {

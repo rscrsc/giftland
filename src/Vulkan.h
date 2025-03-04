@@ -12,6 +12,13 @@
 #include <limits>
 #include "utils.h"
 #include "Config.h"
+#include "Vertex.h"
+
+const std::vector<Vertex> vertices = {
+    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+};
 
 class Vulkan
 {
@@ -55,6 +62,8 @@ private:
         VkPipelineColorBlendStateCreateInfo colorBlend;
         VkPipelineDynamicStateCreateInfo dynamic;
     } pipelineStateCreateInfos;
+    VkVertexInputBindingDescription bindingDescription;
+    std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions;
     std::vector<VkViewport> viewports;
     std::vector<VkRect2D> scissors;
     std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachmentStates;
@@ -65,12 +74,19 @@ private:
     std::vector<VkPushConstantRange> pushConstantRanges;
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     VkPipelineLayout pipelineLayout;
+
+    VkBufferCreateInfo vertexBufferCreateInfo;
+    VkBuffer vertexBuffer;
+    VkMemoryRequirements memoryRequirements;
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    VkMemoryAllocateInfo allocateInfo;
+    VkDeviceMemory vertexBufferMemory;
+    //VkBuffer vertexBuffers[] = {vertexBuffer};
+    //VkDeviceSize offsets[] = {0};
 // Syncs
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> execFences;
-
-//    VkBufferCreateInfo vertexBufferCreateInfo;
 
     inline void createInstance()
     {
@@ -113,6 +129,23 @@ private:
         vkEnumeratePhysicalDevices(instance, &physicalDevicesCnt, physicalDevices.data());
         selectedPhysicalDevice = physicalDevices[0];
         vkGetPhysicalDeviceProperties(selectedPhysicalDevice, &physicalDeviceProperties);
+    }
+    inline void getPhysicalDeviceMemoryProperties ()
+    {
+        vkGetPhysicalDeviceMemoryProperties(selectedPhysicalDevice, &memoryProperties);
+    }
+    inline uint32_t findMemoryType(uint32_t filter, VkMemoryPropertyFlags extra)
+    {
+      // find the first memory type that fits our need
+      //   `filter` are `MemoryType`s that fit in some need, each bit each type
+      //   `extra` are additional properties we require
+        for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
+            if     ((filter & (1 << i))
+                && (memoryProperties.memoryTypes[i].propertyFlags & extra) == extra) {
+                return i;
+            }
+        }
+        throw std::runtime_error("unable to find proper memory");
     }
     inline void createDevice ()
     {
@@ -224,20 +257,38 @@ private:
         VkResult r = vkCreateSwapchainKHR(device, &ci, nullptr, &swapchain);
         if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkCreateSwapchainKHR: ", (int)r));
     }
-/*
-    inline void prepVertexBufferCreateInfo (size_t bufferSize)
+    inline void createVertexBuffer ()
     {
-        auto& vbci = vertexBufferCreateInfo;
-        vbci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        vbci.pNext = nullptr;
-        vbci.flags = 0;
-        vbci.size = bufferSize;
-        vbci.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        vbci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        vbci.queueFamilyIndexCount = queueFamilyInUse.size();
-        vbci.pQueueFamilyIndices = queueFamilyInUse.data();
+        {
+            auto& ci = vertexBufferCreateInfo;
+            ci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            ci.pNext = nullptr;
+            ci.flags = 0;
+            ci.size = sizeof(vertices[0]) * vertices.size();
+            ci.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+            ci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            ci.queueFamilyIndexCount = queueFamilyInUse.size();
+            ci.pQueueFamilyIndices = queueFamilyInUse.data();
+            VkResult r = vkCreateBuffer(device, &ci, nullptr, &vertexBuffer);
+            if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkCreateBuffer: ", (int)r));
+        }
+        {
+            auto& ai = allocateInfo;
+            vkGetBufferMemoryRequirements(device, vertexBuffer, &memoryRequirements);
+            ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+            ai.pNext = nullptr;
+            ai.allocationSize = memoryRequirements.size;
+            ai.memoryTypeIndex = findMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            VkResult r = vkAllocateMemory(device, &ai, nullptr, &vertexBufferMemory);
+            if (r != VK_SUCCESS) throw std::runtime_error(std::format("vkAllocateMemory: ", (int)r));
+        }
+        vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+        
+        void* data;
+        vkMapMemory(device, vertexBufferMemory, 0, vertexBufferCreateInfo.size, 0, &data);
+        memcpy(data, vertices.data(), (size_t)vertexBufferCreateInfo.size);
+        vkUnmapMemory(device, vertexBufferMemory);
     }
-*/
     inline void createSwapchainImageView ()
     {
         std::vector<VkImageViewCreateInfo> swapchainImageViewCreateInfos;
@@ -365,8 +416,8 @@ private:
         std::vector<std::vector<char>> shaderCodes;
         std::vector<VkShaderModuleCreateInfo> shaderModuleCreateInfos;
         shaderCodes.resize(2);
-        readShaderCode(shaderCodes[0], "triangle.vert");
-        readShaderCode(shaderCodes[1], "triangle.frag");
+        readShaderCode(shaderCodes[0], "main.vert");
+        readShaderCode(shaderCodes[1], "main.frag");
         shaderModuleCreateInfos.resize(shaderCodes.size());
         shaderModules.resize(shaderCodes.size());
         for (uint32_t i = 0; i < shaderModuleCreateInfos.size(); ++i) {
@@ -383,14 +434,18 @@ private:
 // create infos about pipeline states
     inline void prepVertexInputStateCreateInfo ()
     {
+        {
+            bindingDescription = Vertex::getBindingDescription();
+            attributeDescriptions = Vertex::getAttributeDescriptions();
+        }
         auto& ci = pipelineStateCreateInfos.vertexInput;
         ci.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         ci.pNext = nullptr;
         ci.flags = 0;
-        ci.vertexBindingDescriptionCount = 0;
-        ci.pVertexBindingDescriptions = nullptr;
-        ci.vertexAttributeDescriptionCount = 0;
-        ci.pVertexAttributeDescriptions = nullptr;
+        ci.vertexBindingDescriptionCount = 1;
+        ci.pVertexBindingDescriptions = &bindingDescription;
+        ci.vertexAttributeDescriptionCount = attributeDescriptions.size();
+        ci.pVertexAttributeDescriptions = attributeDescriptions.data();
     }
     inline void prepInputAssemblyStateCreateInfo ()
     {
@@ -619,6 +674,7 @@ private:
         }
     }
 
+    void buildDataBuffers();
     void buildCommandBuffer ();
     void buildGraphicsPipeline ();
     void buildSwapchain ();
@@ -641,6 +697,7 @@ public:
         surface = s;
         buildSwapchain();
         buildGraphicsPipeline();
+        buildDataBuffers();
         buildCommandBuffer();
     }
 };
